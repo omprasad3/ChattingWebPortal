@@ -51,6 +51,7 @@ class ChatApp:
             channel_id = db.Column(db.String(5), db.ForeignKey('channels.channel_id', ondelete = "SET NULL"), nullable = True)
             password = db.Column(db.String(20), nullable = False)
             user_type = db.Column(db.String(6), nullable = False)
+            muted = db.Column(db.Boolean, default = False)
 
             def __repr__(self):
                 return f'<Users {self.user_id}, {self.username}>'
@@ -86,7 +87,7 @@ class ChatApp:
         self.socketio = SocketIO(self.app)
         self._configure_routes()
 
-    #returns True if the user is not logged in or has no recored in db
+    #returns True if the user is not logged in or has no record in db
     def check_session(self):
         #session check
         if 'user_id' not in session or 'username' not in session or session['user_id'] in [None, ''] or session['username'] in [None, '']:
@@ -136,6 +137,42 @@ class ChatApp:
         self.socketio.run(self.app, debug=True, host=host, port=port)
 
     def _configure_routes(self):
+        #TODO: (i)make a block mechanism handling method like the below method, such that it takes the user id and puts that in a csv file in a format "channel_name: user_id1, user_id2,...", and remove the user from the channel asap with an appropriate message(ii) check  those records when join channel is used, and (iii)delete the records user is deleted or channel is deleted 
+        @self.app.route('/channel/<userID>/toggle_mute')
+        def toggle_mute(userID):
+            #TODO: make the toggle system work here because only the frontend of toggling mechanism is working but it does not stops the user from sending messages so MAKE THE MUTE MECHANISM REALLY WORK
+            if self.check_session() or urlparse(request.referrer).path != "/manage_users":
+                return redirect(url_for("login"))
+            if not userID == session['user_id']:
+                with self.app.app_context():
+                    stmt = select(self.Users.muted).where(self.Users.user_id == userID)
+                    muted = self.db.session.execute(stmt).scalars().all()[0]
+                    stmt = update(self.Users).where(self.Users.user_id == userID).values(muted = not muted)
+                    self.db.session.execute(stmt)
+                    self.db.session.commit()
+            return redirect(url_for('admin_panel'))
+
+        @self.app.route('/channel/<channelID>/members')
+        def get_channel_members(channelID):
+            if self.check_session() or urlparse(request.referrer).path != "/manage_users":
+                return redirect(url_for("login"))
+
+            with self.app.app_context():
+                stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
+                channels = self.db.session.execute(stmt).scalars().all()
+            if len(channels) == 0 or channels[0].owner_id != session['user_id']:
+                return redirect(url_for("channel"))
+
+
+            with self.app.app_context():
+                stmt = select(self.Users).where(self.Users.channel_id == channelID)
+                users = self.db.session.execute(stmt).scalars().all()
+                return {
+                    "members": [
+                        {"ID": user.user_id, "username": user.username, "muted": user.muted} for user in users
+                    ]
+                }
+
         #login page
         @self.app.route("/login", methods = ["GET", "POST"])
         def login():
@@ -422,7 +459,6 @@ class ChatApp:
                 file_type = fileThing.mimetype
                 #the below line checks for the file type
                 message_type = 'i' if file_type.startswith('image/') else 'v' if file_type.startswith('video/') else 'a' if file_type.startswith('audio/') else 'f'
-                print("*****","The type of file is: ", message_type,"*****")
                 with self.app.app_context():
                     self.db.session.add(self.Messages(sender_id=session['user_id'], channel_id=session['channel_id'], content=path,timestamp=datetime.now().replace(microsecond = 0),message_type=message_type))#type:ignore
                     self.db.session.commit()
@@ -436,7 +472,8 @@ class ChatApp:
 
         @self.app.route('/manage_users')
         def admin_panel():
-            if self.check_session():
+            path = urlparse(request.referrer).path 
+            if self.check_session() or path not in ['/channel', '/manage_users']:
                 return redirect(url_for("login"))
 
             with self.app.app_context():
@@ -449,7 +486,7 @@ class ChatApp:
         #TODO: allow and make available all the functins of the admin page
             
 
-            return render_template("manage_page.html")
+            return render_template("manage_page.html", channel_id=session['channel_id'], owner_id=session['user_id'])
 
 
         @self.app.route('/join', methods = ['GET', 'POST'])
