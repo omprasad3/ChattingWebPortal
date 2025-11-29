@@ -1,6 +1,10 @@
 from flask import Flask, render_template, request, session, redirect, url_for, send_from_directory
+from sys import exit
+from sqlalchemy import event
+from sqlalchemy.exc import DatabaseError
 from flask_socketio import join_room, leave_room,  SocketIO
 from flask_sqlalchemy import SQLAlchemy
+from argon2 import PasswordHasher
 from sqlalchemy import select, update, delete
 from datetime import datetime
 from random import choice
@@ -9,12 +13,25 @@ from urllib.parse import urlparse
 from string import hexdigits
 
 
-class IRCApp:
+class ChatApp:
     def __init__(self):
         self.app = Flask(__name__)
         self.app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///database.db"
+        self.app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            "module": __import__('sqlcipher_wrapper')
+        }
         self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        self.db_password = input("Enter the database password: ")
         self.db = SQLAlchemy(self.app)
+
+        with self.app.app_context():
+            @event.listens_for(self.db.engine, 'connect')
+            def set_sqlcipher_key(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute(f'PRAGMA KEY = "{self.db_password}";')
+                cursor.close()
+
+        self.ph = PasswordHasher()
         db = self.db
         class Channels(db.Model):
             __tablename__ = "channels"
@@ -25,8 +42,7 @@ class IRCApp:
             owner_id = db.Column(db.String(10), db.ForeignKey('users.user_id', onupdate="CASCADE", ondelete="CASCADE"), nullable = False)
 
 
-            def __repr__(self):
-                return f'<Channels {self.channel_id}, {self.channel_name}>'
+            def __repr__(self): return f'<Channels {self.channel_id}, {self.channel_name}>'
 
         class Users(db.Model):
             __tablename__ = "users"
@@ -56,7 +72,14 @@ class IRCApp:
         self.Channels = Channels
         self.Messages = Messages
         with self.app.app_context():
-            self.db.create_all()
+            try:
+                self.db.create_all()
+            except DatabaseError:
+                print("WRONG PASSWORD PROVIDED")
+                exit(1)
+            except Exception:
+                print("AN UNKNOWN EXCEPTION HAS BEEN ENCOUNTERED")
+                exit(1)
         self.UPLOAD_FOLDER = 'uploads'
         makedirs(self.UPLOAD_FOLDER, exist_ok=True)
         self.app.config["SECRET_KEY"] = "a1b2c3d4e5"
@@ -74,6 +97,14 @@ class IRCApp:
         if len(users) == 0:
             return True
         return False
+
+    def verify_password(self,original, given):
+        try:
+            if self.ph.verify(original, given) == True:
+                return True
+            return False
+        except Exception as ex:
+            return False
 
     def generate_unique_code(self, length, type):
         while True:
@@ -102,7 +133,7 @@ class IRCApp:
 
     def run(self,host="127.0.0.1", port=5000):
         #add debug here if needed
-        self.socketio.run(self.app, host=host, port=port)
+        self.socketio.run(self.app, debug=True, host=host, port=port)
 
     def _configure_routes(self):
         #login page
@@ -133,7 +164,7 @@ class IRCApp:
                 action = request.form.get("action")
                 #check for empty username or password
                 if password in [None, ''] or username in [None, '']:
-                    return render_template("login.html", error = 'EMPTY USERNAME OF PASSWORD')
+                    return render_template("login.html", error = 'EMPTY NAME OF PASSWORD')
 
                 if action == "register":
                     #check if the username is already taken or not
@@ -143,22 +174,22 @@ class IRCApp:
 
                     #the username is taken
                     if len(row) != 0:
-                        return render_template('login.html', error = f'USERNAME "{username}" IS ALREADY TAKEN')
+                        return render_template('login.html', error = f"NAME '{username}' IS ALREADY TAKEN")
 
                     #insert the new user in the database
                     user_id = self.generate_unique_code(10, 'user_id')
                     with self.app.app_context():
-                        self.db.session.add(self.Users(user_id=user_id, username=username, password=password,channel_id=None,user_type="NORMAL"))#type:ignore
+                        self.db.session.add(self.Users(user_id=user_id, username=username, password=self.ph.hash(password),channel_id=None,user_type="NORMAL"))#type:ignore
                         self.db.session.commit()
 
                     return render_template("login.html", username = username, success = "YOU HAVE REGISTERED SUCCESSFULLY, USE YOUR CREDENTIALS TO LOGIN")
                 elif action == "login":
                     with self.app.app_context():
-                        stmt = select(self.Users).where(self.Users.username == username, self.Users.password == password)
+                        stmt = select(self.Users).where(self.Users.username == username)
                         users = self.db.session.execute(stmt).scalars().all()
 
                     #the user is present
-                    if len(users) != 0:
+                    if len(users) != 0 and self.verify_password(users[0].password, password):#type:ignore
                         #set the session varaibles
                         session['user_id'] = users[0].user_id
                         session['username'] = users[0].username
@@ -169,7 +200,7 @@ class IRCApp:
                         # or redirect to the welcome screen to join or create a channel
                         return redirect(url_for("welcome_screen"))
                     #return the user for entering wrong password
-                    return render_template('login.html', username=username, error = 'USERNAME OR PASSWORD IS INCORRECT')
+                    return render_template('login.html', username=username, error = 'NAME OR PASSWORD IS INCORRECT')
                 else:
                     print("Some abnormal submit action has got from login page:", action)
                     return render_template('login.html', username=username)
@@ -180,6 +211,27 @@ class IRCApp:
         @self.app.route('/uploads/<filename>')
         def uploaded_file(filename):
             return send_from_directory('uploads', filename)
+
+        @self.app.route("/delete_all_messages")
+        def delete_all_messages():
+            if self.check_session():
+                return redirect(url_for("login"))
+
+            with self.app.app_context():
+                stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
+                channels = self.db.session.execute(stmt).scalars().all()
+            #check if the user_id is same as that of the owner_id of the channel he is present in or else ridrect to the channel page
+            if len(channels) == 0 or channels[0].owner_id != session['user_id']:
+                return redirect(url_for("channel"))
+
+            with self.app.app_context():
+                stmt = delete(self.Messages)
+                self.db.session.execute(stmt)
+                self.db.session.commit()
+
+            self.socketio.emit("new_message", {"message_type": "all_message_delete"}, to=session['channel_id'])
+            return redirect(url_for("channel"))
+
 
         @self.app.route("/delete_channel")
         def delete_channel():
@@ -207,7 +259,7 @@ class IRCApp:
                 channel_description = request.form.get('channelDescription') 
                 if channel_name not in ['', None] and channel_password not in ['', None]:
                     with self.app.app_context():
-                        stmt = update(self.Channels).where(self.Channels.channel_id == session['channel_id']).values(channel_name = channel_name, password = channel_password, channel_description = channel_description)
+                        stmt = update(self.Channels).where(self.Channels.channel_id == session['channel_id']).values(channel_name = channel_name, password = self.ph.hash(channel_password), channel_description = channel_description)#type:ignore
                         self.db.session.execute(stmt)
                         self.db.session.commit()
                     self.socketio.emit("new_message", {"content": f"Channel details are updated by {session['username']} [ {session['user_id']} ]", "message_type": "broadcast"}, to=session['channel_id'])
@@ -224,13 +276,14 @@ class IRCApp:
                         stmt = select(self.Users).where(self.Users.username == username)
                         users = self.db.session.execute(stmt).scalars().all()
 
-                    if len(users) != 0:
-                        return redirect(url_for("welcome_screen", error = f"USERNAME '{username}' IS ALREADY TAKEN, TRY WITH A DIFFERENT USERNAME"))
+                    if len(users) != 0 and session['username'] != username:
+                        return redirect(url_for("welcome_screen", error = f"NAME '{username}' IS ALREADY TAKEN, TRY WITH A DIFFERENT NAME"))
                     with self.app.app_context():
-                        stmt = update(self.Users).where(self.Users.user_id == session['user_id']).values(username = username, password = user_password)
+                        stmt = update(self.Users).where(self.Users.user_id == session['user_id']).values(username = username, password = self.ph.hash(user_password))#type:ignore
                         self.db.session.execute(stmt)
                         self.db.session.commit()
-                    session['username'] = username
+                    if session['username'] != username:
+                        session['username'] = username
 
             return redirect(url_for('welcome_screen', success="USER PROFILE UPDATED SUCCESSFULLY"))
 
@@ -353,7 +406,6 @@ class IRCApp:
                     stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
                     channels = self.db.session.execute(stmt).scalars().all()
                 if len(channels) == 0:
-                    print(f"No such channel: {session['channel_id']}")
                     session.pop("channel_id")
                     return redirect(url_for("welcome_screen"))
 
@@ -361,24 +413,44 @@ class IRCApp:
                     stmt = select(self.Users.username, self.Messages.sender_id, self.Messages.content, self.Messages.timestamp, self.Messages.message_type).join(self.Messages, self.Users.user_id == self.Messages.sender_id).where(self.Messages.channel_id == session['channel_id']).order_by(self.Messages.timestamp)
                     messages = self.db.session.execute(stmt).all()
 
-
-                #from here
-                image = request.files['image']
-                if not image:
-                    print("An error occured; image not sent")
-                    return render_template("channel.html", code=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'], error="NO IMAGE FILE PROVIDED")
-                path = pth.join(self.UPLOAD_FOLDER, image.filename)#type: ignore
-                image.save(path)
+                fileThing = request.files['fileThing']
+                if not fileThing:
+                    print("An error occured; file not sent")
+                    return render_template("channel.html", code=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'], error="NO FILE PROVIDED")
+                path = pth.join(self.UPLOAD_FOLDER, fileThing.filename)#type: ignore
+                fileThing.save(path)
+                file_type = fileThing.mimetype
+                #the below line checks for the file type
+                message_type = 'i' if file_type.startswith('image/') else 'v' if file_type.startswith('video/') else 'a' if file_type.startswith('audio/') else 'f'
+                print("*****","The type of file is: ", message_type,"*****")
                 with self.app.app_context():
-                    self.db.session.add(self.Messages(sender_id=session['user_id'], channel_id=session['channel_id'], content=path,timestamp=datetime.now().replace(microsecond = 0),message_type="i"))#type:ignore
+                    self.db.session.add(self.Messages(sender_id=session['user_id'], channel_id=session['channel_id'], content=path,timestamp=datetime.now().replace(microsecond = 0),message_type=message_type))#type:ignore
                     self.db.session.commit()
 
-                self.socketio.emit("new_message", {"message_type": "i", "content": path, "user_id": session['user_id'], "username" : session['username'], "timestamp": f"{datetime.now().replace(microsecond = 0)}"}, to=session['channel_id'])
+                self.socketio.emit("new_message", {"message_type": message_type, "content": path, "user_id": session['user_id'], "username" : session['username'], "timestamp": f"{datetime.now().replace(microsecond = 0)}"}, to=session['channel_id'])
 
                 return render_template("channel.html", code=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'])
 
             else:
                 return redirect(url_for('login'))
+
+        @self.app.route('/manage_users')
+        def admin_panel():
+            if self.check_session():
+                return redirect(url_for("login"))
+
+            with self.app.app_context():
+                stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
+                channels = self.db.session.execute(stmt).scalars().all()
+            #check if the user_id is same as that of the owner_id of the channel he is present in or else ridrect to the channel page
+            if len(channels) == 0 or channels[0].owner_id != session['user_id']:
+                return redirect(url_for("channel"))
+
+        #TODO: allow and make available all the functins of the admin page
+            
+
+            return render_template("manage_page.html")
+
 
         @self.app.route('/join', methods = ['GET', 'POST'])
         def join():
@@ -402,11 +474,11 @@ class IRCApp:
                 #if channel_id is not null
                 if channel_id:
                     with self.app.app_context():
-                        stmt = select(self.Channels).where(self.Channels.channel_id == channel_id, self.Channels.password == request.form.get("passwordInput"))
+                        stmt = select(self.Channels).where(self.Channels.channel_id == channel_id)
                         channels = self.db.session.execute(stmt).scalars().all()
 
-                    #check if the channel is present or not
-                    if len(channels) != 1: return render_template("join_channel.html", error=f"NO SUCH CHANNEL, OR PASSWORD IS INCOREECT", channel_id = channel_id, username=session['username'])
+                    #check if the channel is present or not and check password
+                    if len(channels) != 1 or not self.verify_password(channels[0].password,request.form.get("passwordInput")): return render_template("join_channel.html", error=f"NO SUCH CHANNEL, OR PASSWORD IS INCORRECT", channel_id = channel_id, username=session['username']) #type:ignore
                     #see if the user is owner of the channel then update it's user_type and channel_id
                     user_type = 'OWNER' if channels[0].owner_id == session['user_id'] else 'NORMAL'
 
@@ -449,7 +521,7 @@ class IRCApp:
                         return render_template("create_channel.html", error="PASSWORD IS NOT PROVIDED")
 
                     with self.app.app_context():
-                        self.db.session.add(self.Channels(channel_id=channel_id, channel_name=channel_name, channel_description=channel_description,password=channel_password,owner_id=session['user_id']))#type:ignore
+                        self.db.session.add(self.Channels(channel_id=channel_id, channel_name=channel_name, channel_description=channel_description,password=self.ph.hash(channel_password),owner_id=session['user_id']))#type:ignore
                         self.db.session.commit()
                     return redirect(url_for('join', success = f"CHANNEL ID OF NEWLY CREATED CHANNEL IS: '{channel_id}' - SAVE THIS CODE TO ACCESS THE CHANNEL"))
 
@@ -498,5 +570,5 @@ class IRCApp:
             leave_room(channel_id)
 
 if __name__ == '__main__':
-    app = IRCApp()
+    app = ChatApp()
     app.run()
