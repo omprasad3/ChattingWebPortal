@@ -8,7 +8,7 @@ from argon2 import PasswordHasher
 from sqlalchemy import select, update, delete
 from datetime import datetime
 from random import choice
-from os import makedirs, path as pth
+from os import makedirs, path as pth, remove
 import csv
 from urllib.parse import urlparse
 from string import hexdigits
@@ -82,7 +82,7 @@ class ChatApp:
             except Exception:
                 print("AN UNKNOWN EXCEPTION HAS BEEN ENCOUNTERED")
                 exit(1)
-        self.UPLOAD_FOLDER = 'uploads'
+        self.UPLOAD_FOLDER = "uploads"
         makedirs(self.UPLOAD_FOLDER, exist_ok=True)
         self.app.config["SECRET_KEY"] = "a1b2c3d4e5"
         self.socketio = SocketIO(self.app)
@@ -258,26 +258,68 @@ class ChatApp:
                     self.db.session.execute(stmt)
                     self.db.session.commit()
                     if muted:
+                        stmt = select(self.Users).where(self.Users.user_id == userID)
+                        query = self.db.session.execute(stmt).scalars().all()[0]
+                        self.socketio.emit("new_message", {"message_type": "broadcast", "content": f"{query.username} [ {userID} ] IS UNMUTED IN THIS CHANNEL"}, to=session['channel_id'])
+
                         self.do_operate(session['channel_id'], userID, 'unmute')
                         self.socketio.emit("unmute", {"user_id": userID}) 
                     else:
+                        stmt = select(self.Users).where(self.Users.user_id == userID)
+                        query = self.db.session.execute(stmt).scalars().all()[0]
+                        self.socketio.emit("new_message", {"message_type": "broadcast", "content": f"{query.username} [ {userID} ] IS MUTED IN THIS CHANNEL"}, to=session['channel_id'])
+
                         self.do_operate(session['channel_id'], userID, 'mute')
                         self.socketio.emit("mute", {"user_id": userID}) 
             return redirect(url_for('admin_panel'))
 
         @self.app.route('/channel/<userID>/toggle_block')
         def toggle_block(userID):
-            if self.check_session() or urlparse(request.referrer).path != "/manage_users":
+            if self.check_session() or urlparse(request.referrer).path not in ["/manage_users","/manage_blocked_users"]:
                 return redirect(url_for("login"))
             #if not the userID is of the self, then
             if not userID == session['user_id']:
                 blocked = self.is_blocked_user(session['channel_id'], userID)
                 if blocked:
+                    stmt = select(self.Users).where(self.Users.user_id == userID)
+                    query = self.db.session.execute(stmt).scalars().all()[0]
+                    self.socketio.emit("new_message", {"message_type": "broadcast", "content": f"{query.username} [ {userID} ] IS UNBLOCKED FROM THE CHANNEL"}, to=session['channel_id'])
+
                     self.do_operate(session['channel_id'], userID, 'unblock')
                 else:
+                    stmt = select(self.Users).where(self.Users.user_id == userID)
+                    query = self.db.session.execute(stmt).scalars().all()[0]
+                    self.socketio.emit("new_message", {"message_type": "broadcast", "content": f"{query.username} [ {userID} ] IS BLOCKED FROM THE CHANNEL"}, to=session['channel_id'])
                     self.do_operate(session['channel_id'], userID, 'block')
                     self.remove_user(session['channel_id'], userID)
-            return redirect(url_for('admin_panel'))
+            back_path = 'admin_panel' if urlparse(request.referrer).path == '/manage_users' else 'manage_blocked_users'
+            return redirect(url_for(back_path))
+
+        @self.app.route('/get_all_blocked_members/<channelID>')
+        def get_all_blocked_members(channelID):
+            if self.check_session() or urlparse(request.referrer).path != "/manage_blocked_users":
+                return redirect(url_for("login"))
+            path = self.get_block_csv_path()
+            rows, new_rows,users = [], [], []
+
+            if pth.exists(path):
+                with open(path,'r',newline='') as file:
+                    reader = csv.reader(file)
+                    rows = list(reader)
+
+            if len(rows) > 1 and rows[0] == ['channel_id', 'user_id']:
+                for row in rows[1:]:
+                    if row[0] == channelID:
+                        new_rows.append(row)
+
+                users = self.Users.query.filter(self.Users.user_id.in_([row[1] for row in new_rows])).all()
+            users = [[u.user_id, u.username] for u in users]
+
+            return {
+                "members": [
+                    {"ID": user[0], "username": user[1]} for user in users
+                ]
+            }
 
         @self.app.route('/channel/<channelID>/members')
         def get_channel_members(channelID):
@@ -389,7 +431,13 @@ class ChatApp:
                 return redirect(url_for("channel"))
 
             with self.app.app_context():
-                stmt = delete(self.Messages)
+                stmt = select(self.Messages).where(self.Messages.channel_id == session['channel_id'], self.Messages.message_type != None)
+                messages = self.db.session.execute(stmt).scalars().all()
+                for message in messages:
+                    if pth.exists(pth.join(current_app.root_path, message.content)):
+                        remove(pth.join(current_app.root_path, message.content))
+
+                stmt = delete(self.Messages).where(self.Messages.channel_id == session['channel_id'])
                 self.db.session.execute(stmt)
                 self.db.session.commit()
 
@@ -404,6 +452,14 @@ class ChatApp:
                     self.db.session.execute(stmt)
                     stmt = delete(self.Channels).where(self.Channels.channel_id == session['channel_id'])
                     self.db.session.execute(stmt)
+
+                    # below is the deleting process from the db
+                    stmt = select(self.Messages).where(self.Messages.channel_id == session['channel_id'], self.Messages.message_type != None)
+                    messages = self.db.session.execute(stmt).scalars().all()
+                    for message in messages:
+                        if pth.exists(pth.join(current_app.root_path, message.content)):
+                            remove(pth.join(current_app.root_path, message.content))
+
                     stmt = delete(self.Messages).where(self.Messages.channel_id == session['channel_id'])
                     self.db.session.execute(stmt)
                     self.db.session.commit()
@@ -492,6 +548,13 @@ class ChatApp:
                 for channel in channels:
                     self.socketio.emit("exit_all", None, to=channel.channel_id)
 
+                    # below is the deleting process from the db
+                    stmt = select(self.Messages).where(self.Messages.channel_id == channel.channel_id, self.Messages.message_type != None)
+                    messages = self.db.session.execute(stmt).scalars().all()
+                    for message in messages:
+                        if pth.exists(pth.join(current_app.root_path, message.content)):
+                            remove(pth.join(current_app.root_path, message.content))
+
                     with self.app.app_context():
                         stmt = update(self.Users).where(self.Users.channel_id == channel.channel_id).values(channel_id = None,muted=0)
                         self.db.session.execute(stmt)
@@ -547,12 +610,12 @@ class ChatApp:
                     case '_':
                         print("An unknown post request is got via welcome post")
             if request.args.get("error"):
-                return render_template('welcome.html', username=session['username'], error = request.args.get('error'))
+                return render_template('welcome.html', user_id=session['user_id'], username=session['username'], error = request.args.get('error'))
             if request.args.get("info"):
-                return render_template('welcome.html', username=session['username'], info = request.args.get('info'))
+                return render_template('welcome.html', user_id=session['user_id'], username=session['username'], info = request.args.get('info'))
             if request.args.get("success"):
-                return render_template('welcome.html', username=session['username'], success = request.args.get('success'))
-            return render_template('welcome.html', username=session['username'])
+                return render_template('welcome.html', user_id=session['user_id'], username=session['username'], success = request.args.get('success'))
+            return render_template('welcome.html', user_id=session['user_id'], username=session['username'])
 
         @self.app.route("/channel", methods=['GET', 'POST'])
         def channel():
@@ -571,7 +634,7 @@ class ChatApp:
                 with self.app.app_context():
                     stmt = select(self.Users.username, self.Messages.sender_id, self.Messages.content, self.Messages.timestamp, self.Messages.message_type).join(self.Users , self.Users.user_id == self.Messages.sender_id).where(self.Messages.channel_id == session['channel_id']).order_by(self.Messages.timestamp)
                     messages = self.db.session.execute(stmt).all()
-                return render_template("channel.html", code=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'], muted=self.is_muted_user(session['channel_id'], session['user_id']))
+                return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, username=session['username'], user_id=session['user_id'], muted=self.is_muted_user(session['channel_id'], session['user_id']))
             elif request.method == "POST":
                 with self.app.app_context():
                     stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
@@ -587,8 +650,8 @@ class ChatApp:
                 fileThing = request.files['fileThing']
                 if not fileThing:
                     print("An error occured; file not sent")
-                    return render_template("channel.html", code=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'], error="NO FILE PROVIDED", muted=self.is_muted_user(session['channel_id'], session['user_id']))
-                path = pth.join(self.UPLOAD_FOLDER, fileThing.filename)#type: ignore
+                    return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, username=session['username'], user_id=session['user_id'], error="NO FILE PROVIDED", muted=self.is_muted_user(session['channel_id'], session['user_id']))
+                path = pth.join(self.UPLOAD_FOLDER, session['channel_id'] + fileThing.filename)#type: ignore
                 fileThing.save(path)
                 file_type = fileThing.mimetype
                 #the below line checks for the file type
@@ -599,10 +662,18 @@ class ChatApp:
 
                 self.socketio.emit("new_message", {"message_type": message_type, "content": path, "user_id": session['user_id'], "username" : session['username'], "timestamp": f"{datetime.now().replace(microsecond = 0)}"}, to=session['channel_id'])
 
-                return render_template("channel.html", code=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'], muted=self.is_muted_user(session['channel_id'], session['user_id']))
+                return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,username=session['username'], owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'], muted=self.is_muted_user(session['channel_id'], session['user_id']))
 
             else:
                 return redirect(url_for('login'))
+
+        @self.app.route('/manage_blocked_users')
+        def manage_blocked_users():
+            path = urlparse(request.referrer).path 
+            if self.check_session() or path  not in ['/channel', '/manage_blocked_users']:
+                return redirect(url_for("login"))
+
+            return render_template('blocked_user_page.html', channel_id=session['channel_id'], username=session['username'], user_id=session['user_id'])
 
         @self.app.route('/manage_users')
         def admin_panel():
@@ -617,10 +688,9 @@ class ChatApp:
             if len(channels) == 0 or channels[0].owner_id != session['user_id']:
                 return redirect(url_for("channel"))
 
-            #TODO: allow and make available all the functins of the admin page : GO BACK AND UNBLOCK USERS
-            
-
-            return render_template("manage_page.html", channel_id=session['channel_id'], owner_id=session['user_id'])
+            if request.args.get("go_to_channel"):
+                return redirect(url_for('channel'))
+            return render_template("manage_page.html", channel_id=session['channel_id'], owner_id=session['user_id'], username=session['username'], user_id=session['user_id'])
 
 
         @self.app.route('/join', methods = ['GET', 'POST'])
@@ -638,7 +708,7 @@ class ChatApp:
                 return redirect(url_for('channel'))
 
             if request.args.get("success"):
-                return render_template("join_channel.html", username=session["username"], success = request.args.get('success'))
+                return render_template("join_channel.html", username=session["username"], success = request.args.get('success'), user_id=session['user_id'])
 
             if request.method == "POST":
                 channel_id = request.form.get("channel-ID", False)
@@ -649,13 +719,13 @@ class ChatApp:
                         channels = self.db.session.execute(stmt).scalars().all()
 
                     #check if the channel is present or not and check password
-                    if len(channels) != 1 or not self.verify_password(channels[0].password,request.form.get("passwordInput")): return render_template("join_channel.html", error=f"NO SUCH CHANNEL, OR PASSWORD IS INCORRECT", channel_id = channel_id, username=session['username']) #type:ignore
+                    if len(channels) != 1 or not self.verify_password(channels[0].password,request.form.get("passwordInput")): return render_template("join_channel.html", error=f"NO SUCH CHANNEL, OR PASSWORD IS INCORRECT", channel_id = channel_id, user_id=session['user_id'], username=session['username']) #type:ignore
                     #see if the user is owner of the channel then update it's user_type and channel_id
                     user_type = 'OWNER' if channels[0].owner_id == session['user_id'] else 'NORMAL'
 
                     #to handle blocks
                     if self.is_blocked_user(channel_id, session['user_id']):
-                        return render_template("join_channel.html", error=f"YOU ARE BLOCKED IN THE CHANNEL, WHICH YOU ARE TRYING TO JOIN", channel_id = channel_id, username = session['username'])
+                        return render_template("join_channel.html", error=f"YOU ARE BLOCKED IN THE CHANNEL, WHICH YOU ARE TRYING TO JOIN", channel_id = channel_id, user_id= session['user_id'], username = session['username'])
 
                     with self.app.app_context():
                         stmt = update(self.Users).where(self.Users.user_id == session['user_id']).values(user_type = user_type, channel_id = channel_id,muted=self.is_muted_user(channel_id, session['user_id']))
@@ -666,7 +736,7 @@ class ChatApp:
                     session["channel_id"] = channel_id
                     self.socketio.emit("new_message", {"message_type": "broadcast", "content": f"{session['username']} [ {session['user_id']} ] has joined the channel"}, to=session['channel_id'])
                     return redirect(url_for("channel"))
-            return render_template("join_channel.html", username=session["username"])
+            return render_template("join_channel.html", user_id=session["user_id"], username=session["username"])
 
         @self.app.route('/create', methods = ['GET', 'POST'])
         def create():
@@ -693,14 +763,14 @@ class ChatApp:
 
                     #return to the page with an error if there is no password provided
                     if request.form.get("passwordInput") in ["",None]:
-                        return render_template("create_channel.html", error="PASSWORD IS NOT PROVIDED")
+                        return render_template("create_channel.html", error="PASSWORD IS NOT PROVIDED", user_id=session["user_id"], username=session["username"])
 
                     with self.app.app_context():
                         self.db.session.add(self.Channels(channel_id=channel_id, channel_name=channel_name, channel_description=channel_description,password=self.ph.hash(channel_password),owner_id=session['user_id']))#type:ignore
                         self.db.session.commit()
                     return redirect(url_for('join', success = f"CHANNEL ID OF NEWLY CREATED CHANNEL IS: '{channel_id}' - SAVE THIS CODE TO ACCESS THE CHANNEL"))
 
-            return render_template("create_channel.html", username=session["username"])
+            return render_template("create_channel.html", username=session["username"], user_id=session["user_id"])
 
 
         @self.socketio.on('send_message')

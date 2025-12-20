@@ -7,8 +7,7 @@
 		<tr>
 			<th scope="col">ID</th>
 			<th scope="col">NAME</th>
-			<th scope="col">MUTE / UNMUTE</th>
-			<th scope="col">BLOCK</th>
+			<th scope="col">UNBLOCK</th>
 		</tr>
 		</thead>
 		<tbody id="tableBody">
@@ -33,7 +32,7 @@
 
 
 	function loadMembers() {
-		fetch(`/channel/${channelID}/members`)
+	fetch(`/get_all_blocked_members/{{channel_id}}`)
 		.then(res => res.json())
 		.then(data => {
 			const table = document.getElementById('tableBody');
@@ -42,22 +41,18 @@
 				const tr = document.createElement('tr');
 				const id = document.createElement('td');
 				const username = document.createElement('td');
-				const mutestat = document.createElement('td');
-				mutestat.innerHTML = `<a href="/channel/${m.ID}/toggle_mute">`+(m.muted ? muted : unmuted)+'</a>';
-				const block = document.createElement('td');
-				block.innerHTML = `<a href="/channel/${m.ID}/toggle_block">`+blockit+'</a>';
+				const unblockstat = document.createElement('td');
+				unblockstat.innerHTML = `<a href="/channel/${m.ID}/toggle_block">`+blockit+'</a>';
 				id.textContent = m.ID;
 				username.textContent = m.username;
 				tr.appendChild(id);
 				tr.appendChild(username);
-				tr.appendChild(mutestat);
-				tr.appendChild(block);
+				tr.appendChild(unblockstat);
 				table.appendChild(tr);
 			});
 		});
 	}
 
-	setInterval(loadMembers, 5000);
 	loadMembers();
 </script>
 {% endblock %}

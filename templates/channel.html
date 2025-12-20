@@ -40,18 +40,19 @@
 		<div class="d-flex mt-1 ms-2 me-2 justify-content-between">
 			<strong class="ms-2">{{msg[0]}} [ {{msg[1]}} ]:</strong> <small class="text-muted me-2 ms-4"> {{msg[3]}} </small>
 		</div>
-		<div class="me-5 ms-5 mb-1 text-break">{% if msg[4] == 'i' %}<img class="images" src="{{msg[2]}}"/>{% elif msg[4] == 'v' %}<video class="videos" controls><source src="{{msg[2]}}" type="video/mp4">Your browser does not support video playback</video>{% elif msg[4] == 'a' %}<audio class="audios btn btn-primary" controls><source src="{{msg[2]}}" type="audio/mpeg">Your browser does not support audio playback</audio>{% elif msg[4] == 'f' %}<button class="fileButtons btn btn-primary mb-1" onclick="const anch=document.createElement('a');anch.href='{{msg[2]}}';anch.download='';anch.click();"><svg class="file-icons" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M352 96C352 78.3 337.7 64 320 64C302.3 64 288 78.3 288 96L288 306.7L246.6 265.3C234.1 252.8 213.8 252.8 201.3 265.3C188.8 277.8 188.8 298.1 201.3 310.6L297.3 406.6C309.8 419.1 330.1 419.1 342.6 406.6L438.6 310.6C451.1 298.1 451.1 277.8 438.6 265.3C426.1 252.8 405.8 252.8 393.3 265.3L352 306.7L352 96zM160 384C124.7 384 96 412.7 96 448L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 448C544 412.7 515.3 384 480 384L433.1 384L376.5 440.6C345.3 471.8 294.6 471.8 263.4 440.6L206.9 384L160 384zM464 440C477.3 440 488 450.7 488 464C488 477.3 477.3 488 464 488C450.7 488 440 477.3 440 464C440 450.7 450.7 440 464 440z"/></svg><b>{{msg[2].split('/')[-1]}}</b></button>{% else %}{{msg[2]}}{% endif %}</div>
+		<div class="me-5 ms-5 mb-1 text-break">{% if msg[4] == 'i' %}<img class="images" src="{{msg[2]}}"/>{% elif msg[4] == 'v' %}<video class="videos" controls><source src="{{msg[2]}}" type="video/mp4">Your browser does not support video playback</video>{% elif msg[4] == 'a' %}<audio class="audios btn btn-primary" controls><source src="{{msg[2]}}" type="audio/mpeg">Your browser does not support audio playback</audio>{% elif msg[4] == 'f' %}<button class="fileButtons btn btn-primary mb-1" onclick="const anch=document.createElement('a');anch.href='{{msg[2]}}';anch.download='';anch.click();"><svg class="file-icons" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M352 96C352 78.3 337.7 64 320 64C302.3 64 288 78.3 288 96L288 306.7L246.6 265.3C234.1 252.8 213.8 252.8 201.3 265.3C188.8 277.8 188.8 298.1 201.3 310.6L297.3 406.6C309.8 419.1 330.1 419.1 342.6 406.6L438.6 310.6C451.1 298.1 451.1 277.8 438.6 265.3C426.1 252.8 405.8 252.8 393.3 265.3L352 306.7L352 96zM160 384C124.7 384 96 412.7 96 448L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 448C544 412.7 515.3 384 480 384L433.1 384L376.5 440.6C345.3 471.8 294.6 471.8 263.4 440.6L206.9 384L160 384zM464 440C477.3 440 488 450.7 488 464C488 477.3 477.3 488 464 488C450.7 488 440 477.3 440 464C440 450.7 450.7 440 464 440z"/></svg><b>{{msg[2].split('/')[-1][5:]}}</b></button>{% else %}{{msg[2]}}{% endif %}</div>
 
 	</div>
 	{% endfor %}
 </div>
 <!-- bottom bar -->
-<div class="input-group p-2">
+<div class="input-group p-1">
 	<div id="channel-dropdown" class="dropdown">
 		<ul class="border border-primary border-2 dropdown-menu dropdown-menu p-2 rounded-2 shadow-lg" style="">
 			{% if owner_id == user_id %}
 			<li><a class="dropdown-item rounded fw-bold" data-bs-toggle="modal" data-bs-target="#channelUpdateModal"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor" viewBox="0 0 640 640"><path d="M535.6 85.7C513.7 63.8 478.3 63.8 456.4 85.7L432 110.1L529.9 208L554.3 183.6C576.2 161.7 576.2 126.3 554.3 104.4L535.6 85.7zM236.4 305.7C230.3 311.8 225.6 319.3 222.9 327.6L193.3 416.4C190.4 425 192.7 434.5 199.1 441C205.5 447.5 215 449.7 223.7 446.8L312.5 417.2C320.7 414.5 328.2 409.8 334.4 403.7L496 241.9L398.1 144L236.4 305.7zM160 128C107 128 64 171 64 224L64 480C64 533 107 576 160 576L416 576C469 576 512 533 512 480L512 384C512 366.3 497.7 352 480 352C462.3 352 448 366.3 448 384L448 480C448 497.7 433.7 512 416 512L160 512C142.3 512 128 497.7 128 480L128 224C128 206.3 142.3 192 160 192L256 192C273.7 192 288 177.7 288 160C288 142.3 273.7 128 256 128L160 128z"/></svg><b>UPDATE CHANNEL</b></a></li>
-			<li><a href="/manage_users" class="dropdown-item rounded fw-bold"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor"  viewBox="0 0 640 640"><path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/></svg><b>MANAGE USERS</b></a></li>
+			<li><a href="/manage_users" class="dropdown-item rounded fw-bold"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor"  viewBox="0 0 640 640"><path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/></svg><b>CHANNEL USERS</b></a></li>
+			<li><a href="/manage_blocked_users" class="dropdown-item rounded fw-bold"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor"  viewBox="0 0 640 640"><path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/></svg><b>BLOCKED USERS</b></a></li>
 			<li><a href="/delete_all_messages" class="dropdown-item rounded fw-bold"><b>DELETE ALL MESSAGES</b></a></li>
 			{% endif %}
 			<li><a class="dropdown-item rounded fw-bold" data-bs-toggle="modal" data-bs-target="#aboutModal"><svg xmlns="http://www.w3.org/2000/svg" class="me-2" viewBox="0 0 640 640" width="25px" heigth="25px"><path fill="currentColor" d="M224 224C224 171 267 128 320 128C373 128 416 171 416 224C416 266.7 388.1 302.9 349.5 315.4C321.1 324.6 288 350.7 288 392L288 416C288 433.7 302.3 448 320 448C337.7 448 352 433.7 352 416L352 392C352 390.3 352.6 387.9 355.5 384.7C358.5 381.4 363.4 378.2 369.2 376.3C433.5 355.6 480 295.3 480 224C480 135.6 408.4 64 320 64C231.6 64 160 135.6 160 224C160 241.7 174.3 256 192 256C209.7 256 224 241.7 224 224zM320 576C342.1 576 360 558.1 360 536C360 513.9 342.1 496 320 496C297.9 496 280 513.9 280 536C280 558.1 297.9 576 320 576z"/></svg><b>ABOUT CHANNEL</b></a></li>
@@ -122,7 +123,7 @@ socket.on("new_message", (data) => {
 if ( "message_type" in data && data["message_type"] == "broadcast" ) 
 {
 	const messageDiv = document.createElement("div");
-	messageDiv.classList.add('text-center', 'align-self-center', 'msgg', 'shadow-sm', 'mt-1', 'mb-1', 'me-3', 'ms-1',  'rounded-3', 'border-2', 'border', 'border-primary');
+	messageDiv.classList.add('text-center', 'align-self-center', 'msgg', 'shadow-sm', 'mt-1', 'mb-1', 'me-3', 'ms-1',  'rounded-3', 'border-2', 'border', 'border-dark');
 
 	const mesg = document.createElement("div");
 	mesg.classList.add('me-4', 'ms-4', 'mb-1', 'text-break','fw-bold');
@@ -140,7 +141,7 @@ else if("message_type" in data && data["message_type"] == "all_message_delete")
 	window.location.reload();	
 	/*
 	const messageDiv = document.createElement("div");
-	messageDiv.classList.add('text-center', 'align-self-center', 'msgg', 'shadow-sm', 'mt-1', 'mb-1', 'me-3', 'ms-1',  'rounded-3', 'border-2', 'border', 'border-primary');
+	messageDiv.classList.add('text-center', 'align-self-center', 'msgg', 'shadow-sm', 'mt-1', 'mb-1', 'me-3', 'ms-1',  'rounded-3', 'border-2', 'border', 'border-dark');
 
 	const mesg = document.createElement("div");
 	mesg.classList.add('me-4', 'ms-4', 'mb-1', 'text-break','fw-bold');
@@ -191,7 +192,7 @@ document.getElementById('send-btn').addEventListener("click", sendMessage);
 function addNewMessage(username, user_id, timestamp, content, message_type)
 {
 	const messageDiv = document.createElement("div");
-	messageDiv.classList.add('msgg', 'shadow-sm', 'mt-1', 'mb-1', 'me-3', 'ms-3', 'border', 'rounded-3', 'border-2', 'border-primary');
+	messageDiv.classList.add('msgg', 'shadow-sm', 'mt-1', 'mb-1', 'me-3', 'ms-3', 'border', 'rounded-3', 'border-2', 'border-dark');
 	if ( user_id == "{{user_id}}" )
 	{
 		messageDiv.classList.add('align-self-end');	
@@ -254,7 +255,7 @@ function addNewMessage(username, user_id, timestamp, content, message_type)
 		svg.setAttribute('viewBox', '0 0 640 640');
 		const path = document.createElementNS(svgNS, 'path');
 		const bold = document.createElement('b');
-		bold.textContent = content.split('/').pop();
+		bold.textContent = content.split('/').pop().substring(5);
 		path.setAttribute('d', 'M352 96C352 78.3 337.7 64 320 64C302.3 64 288 78.3 288 96L288 306.7L246.6 265.3C234.1 252.8 213.8 252.8 201.3 265.3C188.8 277.8 188.8 298.1 201.3 310.6L297.3 406.6C309.8 419.1 330.1 419.1 342.6 406.6L438.6 310.6C451.1 298.1 451.1 277.8 438.6 265.3C426.1 252.8 405.8 252.8 393.3 265.3L352 306.7L352 96zM160 384C124.7 384 96 412.7 96 448L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 448C544 412.7 515.3 384 480 384L433.1 384L376.5 440.6C345.3 471.8 294.6 471.8 263.4 440.6L206.9 384L160 384zM464 440C477.3 440 488 450.7 488 464C488 477.3 477.3 488 464 488C450.7 488 440 477.3 440 464C440 450.7 450.7 440 464 440z');
 		path.setAttribute('fill', 'currentColor');
 		svg.appendChild(path);

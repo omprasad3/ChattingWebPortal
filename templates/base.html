@@ -34,11 +34,18 @@
 
 	</head>
 	<!--<body class="bg-dark text-light">-->
-	<body class="d-flex flex-column vh-100">
-		<nav class="navbar navbar-expand navbar-dark bg-dark">
-			<p class="navbar-brand h1 lh-lg fw-bold ms-5">CHAT APPLICATION</p>
-		</nav> 
-		{% block content %} {% endblock %}
+	<!--<body class="d-flex flex-column vh-100">-->
+		<div class="d-flex flex-column vh-100">
+			<nav class="navbar navbar-expand navbar-dark bg-dark justify-content-between">
+			<p class="navbar-brand h1 lh-lg fw-bold ms-5 fst-italic">CHAT APPLICATION</p>
+			{% if channel_id is defined %}
+			<p class="navbar-brand fst-italic me-5">CHANNEL ID : ' <b>{{channel_id}}</b> '</p>
+			{% endif %}
+			{% if username is defined and user_id is defined %}
+			<p class="navbar-brand fst-italic me-5">LOGGED IN AS ' <b>{{username}} [ {{user_id}} ]</b> '</p>
+			{% endif %}
+			</nav> 
+			{% block content %} {% endblock %}
 		{% if error is defined %}
 		<script>
 		document.addEventListener("DOMContentLoaded", function() {
