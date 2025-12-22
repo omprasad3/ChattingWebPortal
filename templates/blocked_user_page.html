@@ -1,35 +1,38 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="table-area d-flex flex-column overflow-auto h-100 border border-primary m-1 rounded-3" id="messages" style="overflow-y:scroll;">
-	<table class="table table-default table-hover table-">
+<style>
+th,td {
+	text-align:center;
+}
+</style>
+<div class="d-flex flex-column overflow-auto h-100 border border-3 border-primary m-1 rounded-4" id="messages" style="overflow-y:scroll;">
+	<table class="table h6 border-primary table-striped fst-italic">
 		<thead>
 		<tr>
-			<th scope="col">ID</th>
-			<th scope="col">NAME</th>
-			<th scope="col">UNBLOCK</th>
+			<th scope="col" class="col-2 h5 border border-primary border-start-0 border-top-0"><b>ID</b></th>
+			<th scope="col" class="col-6 h5 border border-primary border-start-0 border-top-0"><b>NAME</b></th>
+			<th scope="col" class="col-1 h5 border border-primary border-start-0 border-top-0 border-end-0"><b>UNBLOCK</b></th>
 		</tr>
 		</thead>
-		<tbody id="tableBody">
+		<tbody id="tableBody" class="">
 
 		</tbody>
 	</table>
 	<ul id="membersList"></ul>
 </div>
 
-<div class="input-group p-2">
+<div class="input-group p-1 justify-content-center">
 	<form action="{{url_for('channel')}}" method="get">
-		<button class="border-2 btn ms-2 btn-primary shadow me-2 rounded-3" style="border:none;" type="submit"><svg width="22px" height="30px" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M96 320C96 289.1 121.1 264 152 264C182.9 264 208 289.1 208 320C208 350.9 182.9 376 152 376C121.1 376 96 350.9 96 320zM264 320C264 289.1 289.1 264 320 264C350.9 264 376 289.1 376 320C376 350.9 350.9 376 320 376C289.1 376 264 350.9 264 320zM488 264C518.9 264 544 289.1 544 320C544 350.9 518.9 376 488 376C457.1 376 432 350.9 432 320C432 289.1 457.1 264 488 264z"/></svg>GO BACK</button>
+
+					<button class="border-dark border-2 border btn ms-2 btn-primary shadow-sm rounded-3 btn-lg p-3 fw-bold" style="border:none;" type="submit"><b>BACK</b></button>
 	</form>
 </div>
 
 
 <script>
 	const channelID = "{{channel_id}}";
-	const blockit = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 640 640"><path d="M431.2 476.5L163.5 208.8C141.1 240.2 128 278.6 128 320C128 426 214 512 320 512C361.5 512 399.9 498.9 431.2 476.5zM476.5 431.2C498.9 399.8 512 361.4 512 320C512 214 426 128 320 128C278.5 128 240.1 141.1 208.8 163.5L476.5 431.2zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/></svg>';
-	const muted = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 640 640"><path d="M73 39C63.6 29.7 48.4 29.7 39 39C29.6 48.3 29.7 63.6 39 73L567 601C576.4 610.4 591.6 610.4 600.9 601C610.2 591.6 610.3 576.4 600.9 567.1L504.3 470.5C548.7 427.3 575.9 368.7 575.9 304C575.9 171.5 461.3 64 319.9 64C256.9 64 199.1 85.4 154.5 120.8L73 39zM92.4 194C74.2 227 64 264.3 64 303.9C64 358.2 83.2 408.2 115.6 448.4L66.8 540.7C62 549.7 63.5 560.7 70.4 568.2C77.3 575.7 88.1 578 97.5 574L215.9 523.3C247.7 536.6 283 544 320 544C356.4 544 390.9 536.9 422.3 524.1L92.3 194.1z"/></svg>';
-	const unmuted = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="green" viewBox="0 0 640 640"><path d="M576 304C576 436.5 461.4 544 320 544C282.9 544 247.7 536.6 215.9 523.3L97.5 574.1C88.1 578.1 77.3 575.8 70.4 568.3C63.5 560.8 62 549.8 66.8 540.8L115.6 448.6C83.2 408.3 64 358.3 64 304C64 171.5 178.6 64 320 64C461.4 64 576 171.5 576 304z"/></svg>';
-
+	const unblockit = '<svg width="35px" height="35px" fill="green" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M480 96C515.3 96 544 124.7 544 160L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 160C96 124.7 124.7 96 160 96L480 96zM438 209.7C427.3 201.9 412.3 204.3 404.5 215L285.1 379.2L233 327.1C223.6 317.7 208.4 317.7 199.1 327.1C189.8 336.5 189.7 351.7 199.1 361L271.1 433C276.1 438 283 440.5 289.9 440C296.8 439.5 303.3 435.9 307.4 430.2L443.3 243.2C451.1 232.5 448.7 217.5 438 209.7z"/></svg>';
 
 	function loadMembers() {
 	fetch(`/get_all_blocked_members/{{channel_id}}`)
@@ -40,9 +43,19 @@
 			data.members.forEach(m => {
 				const tr = document.createElement('tr');
 				const id = document.createElement('td');
+				id.classList.add("border");
+				id.classList.add("border-primary");
+				id.classList.add("border-start-0");
+				id.classList.add("border-top-0");
+
 				const username = document.createElement('td');
+				username.classList.add("border");
+				username.classList.add("border-primary");
+				username.classList.add("border-start-0");
+				username.classList.add("border-top-0");
+
 				const unblockstat = document.createElement('td');
-				unblockstat.innerHTML = `<a href="/channel/${m.ID}/toggle_block">`+blockit+'</a>';
+				unblockstat.innerHTML = `<a href="/channel/${m.ID}/toggle_block">`+unblockit+'</a>';
 				id.textContent = m.ID;
 				username.textContent = m.username;
 				tr.appendChild(id);

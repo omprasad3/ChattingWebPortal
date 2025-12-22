@@ -128,20 +128,23 @@ class ChatApp:
                 rows = list(reader)
 
         #initialize header
+        print(list(rows))
         if not rows or rows[0] != ['channel_id', 'user_id']:
             rows.insert(0, ['channel_id', 'user_id'])
+        print(list(rows))
 
         if cmd_type in ['block', 'mute']:
             #check if already blocked
             for row in rows[1:]:
                 if row[0] == channel_id and row[1] == user_id:
-                    print('The user {} is already',cmd_type+'ed', 'in the channel "{}"'.format(user_id, channel_id))
+                    print(f'THE USER {user_id} IS ALREADY',cmd_type+'ED', 'IN THE CHANNEL "{}"'.format(channel_id))
                     return
 
-            with open(csv_path, 'a', newline="") as file:
+            with open(csv_path, 'w', newline="") as file:
                 writer = csv.writer(file)
-                writer.writerow([channel_id, user_id])
-            print('The user "{}" is',cmd_type+'ed','in the channel "{}"'.format(user_id, channel_id))
+                rows.append([channel_id, user_id])
+                writer.writerows(rows)
+            print(f'tHE USER "{user_id}" IS',cmd_type+'ED','IN THE CHANNEL "{}"'.format(channel_id))
         elif cmd_type in ['unblock', 'unmute']:
             changed = False
             #check if user-id is muted and remove that line only
@@ -154,12 +157,11 @@ class ChatApp:
                 with open(csv_path, 'w', newline="") as file:
                     writer = csv.writer(file)
                     writer.writerows(new_rows)
-                print('The user "{}" is',cmd_type + 'ed','in the channel "{}"'.format(user_id, channel_id))
+                print('THE USER "{}" IS',cmd_type + 'ED','IN THE CHANNEL "{}"'.format(user_id, channel_id))
             else:
-                print('The user "{}" not found in the channel "{}" for being'.format(user_id, channel_id),cmd_type + 'ed')
+                print('THE USER "{}" NOT FOUND IN THE CHANNEL "{}" FOR BEING'.format(user_id, channel_id),cmd_type + 'ed')
         else:
-            print("Some other type of command is encountered")
-            print(cmd_type)
+            print("SOME OTHER TYPE OF COMMAND IS ENCOUNTERED:", cmd_type)
 
     def is_muted_user(self, channel_id, user_id):
         with self.app.app_context():
@@ -216,6 +218,12 @@ class ChatApp:
                     writer = csv.writer(file)
                     writer.writerows(new_rows)
 
+    def get_channel_name(self, channel_id):
+        with self.app.app_context():
+            stmt = select(self.Channels.channel_name).where(self.Channels.channel_id == channel_id)
+            channel_name = self.db.session.execute(stmt).scalars().all()[0]
+        return channel_name
+
     def generate_unique_code(self, length, type):
         while True:
             code = ''
@@ -231,7 +239,7 @@ class ChatApp:
                 case 'channel_id':
                     stmt = select(self.Channels).where(self.Channels.channel_id == code)
                 case _:
-                    print("Unknown type of code has been asked for, the type is:", type)
+                    print("UNKNOWN TYPE OF CODE HAS BEEN ASKED FOR, THE TYPE IS:", type)
                     return None
             with self.app.app_context():
                 query = self.db.session.execute(stmt).scalars().all()
@@ -241,9 +249,8 @@ class ChatApp:
                 break
         return code
 
-    def run(self,host="127.0.0.1", port=5000):
-        #add debug here if needed
-        self.socketio.run(self.app, debug=True, host=host, port=port)
+    def run(self,host="127.0.0.1", port=5000, debug=False):
+        self.socketio.run(self.app, host=host, port=port, debug=debug)
 
     def _configure_routes(self):
         @self.app.route('/channel/<userID>/toggle_mute')
@@ -395,7 +402,7 @@ class ChatApp:
                         users = self.db.session.execute(stmt).scalars().all()
 
                     #the user is present
-                    if len(users) != 0 and self.verify_password(users[0].password, password):#type:ignore
+                    if len(users) != 0 and self.verify_password(users[0].password, password):
                         #set the session varaibles
                         session['user_id'] = users[0].user_id
                         session['username'] = users[0].username
@@ -408,7 +415,7 @@ class ChatApp:
                     #return the user for entering wrong password
                     return render_template('login.html', username=username, error = 'NAME OR PASSWORD IS INCORRECT')
                 else:
-                    print("Some abnormal submit action has got from login page:", action)
+                    print("SOME ABNORMAL SUBMIT ACTION HAS GOT FROM LOGIN PAGE:", action)
                     return render_template('login.html', username=username)
             #normal rendering of login page
             return render_template('login.html')
@@ -608,7 +615,7 @@ class ChatApp:
                     case "create":
                         return redirect(url_for("create"))
                     case '_':
-                        print("An unknown post request is got via welcome post")
+                        print("AN UNKNOWN POST REQUEST IS GOT VIA WELCOME POST")
             if request.args.get("error"):
                 return render_template('welcome.html', user_id=session['user_id'], username=session['username'], error = request.args.get('error'))
             if request.args.get("info"):
@@ -628,7 +635,7 @@ class ChatApp:
                     channels = self.db.session.execute(stmt).scalars().all()
 
                 if len(channels) == 0:
-                    print(f"No such channel: {session['channel_id']}")
+                    print(f"NO SUCH CHANNEL: {session['channel_id']}")
                     return redirect(url_for("welcome_screen"))
 
                 with self.app.app_context():
@@ -649,7 +656,7 @@ class ChatApp:
 
                 fileThing = request.files['fileThing']
                 if not fileThing:
-                    print("An error occured; file not sent")
+                    print("AN ERROR OCCURED; FILE NOT SENT")
                     return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, username=session['username'], user_id=session['user_id'], error="NO FILE PROVIDED", muted=self.is_muted_user(session['channel_id'], session['user_id']))
                 path = pth.join(self.UPLOAD_FOLDER, session['channel_id'] + fileThing.filename)#type: ignore
                 fileThing.save(path)
@@ -673,7 +680,7 @@ class ChatApp:
             if self.check_session() or path  not in ['/channel', '/manage_blocked_users']:
                 return redirect(url_for("login"))
 
-            return render_template('blocked_user_page.html', channel_id=session['channel_id'], username=session['username'], user_id=session['user_id'])
+            return render_template('blocked_user_page.html', channel_name=self.get_channel_name(session['channel_id']), channel_id=session['channel_id'], username=session['username'], user_id=session['user_id'])
 
         @self.app.route('/manage_users')
         def admin_panel():
@@ -690,7 +697,7 @@ class ChatApp:
 
             if request.args.get("go_to_channel"):
                 return redirect(url_for('channel'))
-            return render_template("manage_page.html", channel_id=session['channel_id'], owner_id=session['user_id'], username=session['username'], user_id=session['user_id'])
+            return render_template("manage_page.html", channel_name=self.get_channel_name(session['channel_id']) , channel_id=session['channel_id'], owner_id=session['user_id'], username=session['username'], user_id=session['user_id'])
 
 
         @self.app.route('/join', methods = ['GET', 'POST'])
@@ -791,7 +798,7 @@ class ChatApp:
                     self.db.session.add(self.Messages(sender_id=session['user_id'],channel_id=channel_id, content=data['data'], timestamp=current_time))#type:ignore
                     self.db.session.commit()
 
-                print(f'{username} said: {data["data"]}')
+                print(f'{username} SAID: {data["data"]}')
 
         @self.socketio.on('connect')
         def connect(auth):
@@ -817,4 +824,5 @@ class ChatApp:
 
 if __name__ == '__main__':
     app = ChatApp()
+    #you can provide params : ( host, port, debug ) 
     app.run()

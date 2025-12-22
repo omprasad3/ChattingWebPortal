@@ -3,7 +3,7 @@
 	{% block content %}
 	<div class="border-2 border-primary border d-flex flex-column px-5 mx-auto pt-4 my-auto rounded-4 shadow-lg">
 		<form method="post" action="/join" class="needs-validation" novalidate>
-			<p class="text-center h1 mb-5 fw-bold"><b>YOU WILL JOIN A CHANNEL AS <b><i>'{{username}}'</i></b></b></p>
+			<p class="text-center h1 mb-3 fw-bold"><b>YOU WILL JOIN A CHANNEL AS <b><i>'{{username}}'</i></b></b></p>
 			<label class="form-label me-2 mt-2 fw-semibold" for="channel-ID">ENTER CHANNEL ID</label>
 			<div class="form-floating mb-3">
 				<input type="text" maxlength="5" class="rounded-3 border-2 form-control shadow-sm" style="" placeholder="ENTER CHANNEL ID" value ="{{channel_id}}" name="channel-ID" required/>
@@ -13,12 +13,15 @@
 			<label class="form-label me-2 mt-2 fw-semibold" for="passwordInput">ENTER PASSWORD</label>
 			<div class="input-group mb-3">
 				<input type="text" maxlength="20" class="border-2 form-control shadow-sm rounded-3 me-2" style="resize:none;" maxlength="30" placeholder="PASSWORD" id="passwordInput" name="passwordInput" required/>
-				<button class="btn rounded-3 shadow-sm border-2 btn-secondary" style="" type="button" id="togglePassword">SHOW</button>
+				<button class="border-dark btn rounded-3 shadow-sm border-2 btn-secondary" style="" type="button" id="togglePassword">SHOW</button>
 				<div class="invalid-feedback">PLEASE FILL OUT THIS FIELD.</div>
 			</div>
-			<div class="d-flex justify-content-center pb-4">
-				<button type="submit" class="border-2 fw-bold btn rounded-3 shadow-sm btn-primary btn-lg" style="" name="join"><b>JOIN</b></button>
-			</div>
+			<div class="input-group justify-content-center pb-4">
+				<button type="submit" class="border-dark border-2 fw-bold btn rounded-3 shadow-sm btn-primary btn-lg" style="" name="join"><b>JOIN</b></button>
 		</form> 
+				<form action="{{url_for("welcome_screen")}}" method="get">
+					<button class="border-dark border-2 border btn ms-2 btn-primary shadow-sm rounded-3 p-3 fw-bold btn-lg" style="border:none;" type="submit"><b>BACK</b></button>
+				</form>
+			</div>
 	</div>
 	{% endblock %}
