@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, session, redirect, url_for, send_from_directory, current_app
-from sys import exit
-from sqlalchemy import event
-from sqlalchemy.exc import DatabaseError
+from shutil import copy
 from flask_socketio import join_room, leave_room,  SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from argon2 import PasswordHasher
@@ -17,20 +15,11 @@ from string import hexdigits
 class ChatApp:
     def __init__(self):
         self.app = Flask(__name__)
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///database.db"
-        self.app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-            "module": __import__('sqlcipher_wrapper')
-        }
-        self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        self.db_password = input("Enter the database password: ")
-        self.db = SQLAlchemy(self.app)
 
-        with self.app.app_context():
-            @event.listens_for(self.db.engine, 'connect')
-            def set_sqlcipher_key(dbapi_connection, connection_record):
-                cursor = dbapi_connection.cursor()
-                cursor.execute(f'PRAGMA KEY = "{self.db_password}";')
-                cursor.close()
+        self.app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///database.db"
+        self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        self.db = SQLAlchemy(self.app)
+        db = self.db
 
         self.ph = PasswordHasher()
         db = self.db
@@ -41,6 +30,7 @@ class ChatApp:
             channel_description = db.Column(db.String(255))
             password = db.Column(db.String(20), nullable = False)
             owner_id = db.Column(db.String(10), db.ForeignKey('users.user_id', onupdate="CASCADE", ondelete="CASCADE"), nullable = False)
+            pict = db.Column(db.String(30), nullable = True)
 
 
             def __repr__(self): return f'<Channels {self.channel_id}, {self.channel_name}>'
@@ -53,6 +43,7 @@ class ChatApp:
             password = db.Column(db.String(20), nullable = False)
             user_type = db.Column(db.String(6), nullable = False)
             muted = db.Column(db.Boolean, default = False)
+            pfp = db.Column(db.String(30), nullable = True)
 
             def __repr__(self):
                 return f'<Users {self.user_id}, {self.username}>'
@@ -73,17 +64,20 @@ class ChatApp:
         self.Users : type[Users] = Users
         self.Channels = Channels
         self.Messages = Messages
+
         with self.app.app_context():
-            try:
-                self.db.create_all()
-            except DatabaseError:
-                print("WRONG PASSWORD PROVIDED")
-                exit(1)
-            except Exception:
-                print("AN UNKNOWN EXCEPTION HAS BEEN ENCOUNTERED")
-                exit(1)
-        self.UPLOAD_FOLDER = "uploads"
-        makedirs(self.UPLOAD_FOLDER, exist_ok=True)
+            self.db.create_all()
+        self.UPLOAD_FOLDER = 'uploads'
+        try:
+            makedirs(self.UPLOAD_FOLDER)
+        except FileExistsError:
+            with self.app.app_context():
+                if not pth.exists(pth.join(current_app.root_path, 'uploads/default_avatar.jpg')):
+                    copy(pth.join(current_app.root_path, 'static/images/default_avatar.jpg'), pth.join(current_app.root_path, 'uploads/'))
+                if not pth.exists(pth.join(current_app.root_path, 'uploads/default_group.jpg')):
+                    copy(pth.join(current_app.root_path, 'static/images/default_group.jpg'), pth.join(current_app.root_path, 'uploads/'))
+        except Exception:
+            print("UNKNOWN ERROR HAS BEEEN ENCOUNTERED")
         self.app.config["SECRET_KEY"] = "a1b2c3d4e5"
         self.socketio = SocketIO(self.app)
         self._configure_routes()
@@ -128,10 +122,8 @@ class ChatApp:
                 rows = list(reader)
 
         #initialize header
-        print(list(rows))
         if not rows or rows[0] != ['channel_id', 'user_id']:
             rows.insert(0, ['channel_id', 'user_id'])
-        print(list(rows))
 
         if cmd_type in ['block', 'mute']:
             #check if already blocked
@@ -144,7 +136,7 @@ class ChatApp:
                 writer = csv.writer(file)
                 rows.append([channel_id, user_id])
                 writer.writerows(rows)
-            print(f'tHE USER "{user_id}" IS',cmd_type+'ED','IN THE CHANNEL "{}"'.format(channel_id))
+            print(f'THE USER "{user_id}" IS',cmd_type+'ED','IN THE CHANNEL "{}"'.format(channel_id))
         elif cmd_type in ['unblock', 'unmute']:
             changed = False
             #check if user-id is muted and remove that line only
@@ -320,11 +312,10 @@ class ChatApp:
                         new_rows.append(row)
 
                 users = self.Users.query.filter(self.Users.user_id.in_([row[1] for row in new_rows])).all()
-            users = [[u.user_id, u.username] for u in users]
-
+            users = [[u.user_id, u.username, u.pfp] for u in users]
             return {
                 "members": [
-                    {"ID": user[0], "username": user[1]} for user in users
+                    {"ID": user[0], "username": user[1], "pfp": user[2]} for user in users
                 ]
             }
 
@@ -345,7 +336,7 @@ class ChatApp:
                 users = self.db.session.execute(stmt).scalars().all()
                 return {
                     "members": [
-                        {"ID": user.user_id, "username": user.username, "muted": user.muted} for user in users
+                        {"ID": user.user_id, "username": user.username, "muted": user.muted, "pfp": user.pfp} for user in users
                     ]
                 }
 
@@ -450,6 +441,30 @@ class ChatApp:
 
             self.socketio.emit("new_message", {"message_type": "all_message_delete"}, to=session['channel_id'])
             return redirect(url_for("channel"))
+
+        @self.app.route("/remove_channel_image")
+        def remove_channel_image():
+            stmt = select(self.Channels.pict).where(self.Channels.channel_id == session['channel_id'])
+            pict = self.db.session.execute(stmt).scalars().all()[0]
+            if not self.check_session() and "channel_id" in session and urlparse(request.referrer).path == "/channel" and pict != None:
+                with self.app.app_context():
+                    stmt = update(self.Channels).where(self.Channels.channel_id == session['channel_id']).values(pict= None)
+                    self.db.session.execute(stmt)
+                    self.db.session.commit()
+            return redirect(url_for('channel'))
+
+
+        @self.app.route("/remove_pfp")
+        def remove_profile_image():
+            stmt = select(self.Users.pfp).where(self.Users.user_id == session['user_id'])
+            user = self.db.session.execute(stmt).scalars().all()[0]
+            if not self.check_session() and "user_id" in session and urlparse(request.referrer).path == "/" and user != None:
+                with self.app.app_context():
+                    stmt = update(self.Users).where(self.Users.user_id == session['user_id']).values(pfp= None)
+                    self.db.session.execute(stmt)
+                    self.db.session.commit()
+                return redirect(url_for('welcome_screen', success = "PROFILE IMAGE REMOVED SUCCESSFULLY"))
+            return redirect(url_for('welcome_screen', info = "PROFILE IMAGE IS ALREADY DEFAULT"))
 
         @self.app.route("/delete_channel")
         def delete_channel():
@@ -605,7 +620,20 @@ class ChatApp:
             if self.check_session():
                 return redirect(url_for("login"))
 
-            if request.method == "POST":
+            elif request.method == "POST":
+                pfp = None
+                try:
+                    pfp = request.files['pfpFile']
+                    if pfp:
+                        path = pth.join(self.UPLOAD_FOLDER, session['user_id'] + pfp.filename)#type: ignore
+                        pfp.save(path)#type: ignore
+                        with self.app.app_context():
+                            stmt = update(self.Users).where(self.Users.user_id == session['user_id']).values(pfp= session['user_id'] + pfp.filename)
+                            self.db.session.execute(stmt)
+                            self.db.session.commit()
+                    return redirect(url_for("welcome_screen", success = "PROFILE IMAGE UPDATED SUCCESSFULLY"))
+                except:
+                    print("NOT A PROFILE IMAGE UPDATER")
 
                 #check if the post action was of join or create and redirect accordingly
                 type_of_action = request.form.get("action")
@@ -616,61 +644,67 @@ class ChatApp:
                         return redirect(url_for("create"))
                     case '_':
                         print("AN UNKNOWN POST REQUEST IS GOT VIA WELCOME POST")
-            if request.args.get("error"):
+            elif request.args.get("error"):
                 return render_template('welcome.html', user_id=session['user_id'], username=session['username'], error = request.args.get('error'))
-            if request.args.get("info"):
+            elif request.args.get("info"):
                 return render_template('welcome.html', user_id=session['user_id'], username=session['username'], info = request.args.get('info'))
-            if request.args.get("success"):
+            elif request.args.get("success"):
                 return render_template('welcome.html', user_id=session['user_id'], username=session['username'], success = request.args.get('success'))
             return render_template('welcome.html', user_id=session['user_id'], username=session['username'])
 
         @self.app.route("/channel", methods=['GET', 'POST'])
         def channel():
+            #check for validity
             if self.check_session():
                 return redirect(url_for("login"))
-
-            if request.method == "GET":
-                with self.app.app_context():
-                    stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
-                    channels = self.db.session.execute(stmt).scalars().all()
-
-                if len(channels) == 0:
-                    print(f"NO SUCH CHANNEL: {session['channel_id']}")
-                    return redirect(url_for("welcome_screen"))
-
-                with self.app.app_context():
-                    stmt = select(self.Users.username, self.Messages.sender_id, self.Messages.content, self.Messages.timestamp, self.Messages.message_type).join(self.Users , self.Users.user_id == self.Messages.sender_id).where(self.Messages.channel_id == session['channel_id']).order_by(self.Messages.timestamp)
-                    messages = self.db.session.execute(stmt).all()
-                return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, username=session['username'], user_id=session['user_id'], muted=self.is_muted_user(session['channel_id'], session['user_id']))
-            elif request.method == "POST":
-                with self.app.app_context():
-                    stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
-                    channels = self.db.session.execute(stmt).scalars().all()
-                if len(channels) == 0:
-                    session.pop("channel_id")
-                    return redirect(url_for("welcome_screen"))
-
+            #collect channel details
+            with self.app.app_context():
+                stmt = select(self.Channels).where(self.Channels.channel_id == session['channel_id'])
+                channels = self.db.session.execute(stmt).scalars().all()
+            #check channel validity
+            if len(channels) == 0:
+                session.pop("channel_id")
+                return redirect(url_for("welcome_screen"))
+            
+            if request.method == "POST":
                 with self.app.app_context():
                     stmt = select(self.Users.username, self.Messages.sender_id, self.Messages.content, self.Messages.timestamp, self.Messages.message_type).join(self.Messages, self.Users.user_id == self.Messages.sender_id).where(self.Messages.channel_id == session['channel_id']).order_by(self.Messages.timestamp)
                     messages = self.db.session.execute(stmt).all()
 
-                fileThing = request.files['fileThing']
-                if not fileThing:
-                    print("AN ERROR OCCURED; FILE NOT SENT")
-                    return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, username=session['username'], user_id=session['user_id'], error="NO FILE PROVIDED", muted=self.is_muted_user(session['channel_id'], session['user_id']))
-                path = pth.join(self.UPLOAD_FOLDER, session['channel_id'] + fileThing.filename)#type: ignore
-                fileThing.save(path)
-                file_type = fileThing.mimetype
-                #the below line checks for the file type
-                message_type = 'i' if file_type.startswith('image/') else 'v' if file_type.startswith('video/') else 'a' if file_type.startswith('audio/') else 'f'
+                chanImgFile = fileThing = None
+                try:
+                    chanImgFile = request.files['chanImgFile']
+                except:
+                    fileThing = request.files['fileThing']
+                if chanImgFile:
+                    path = pth.join(self.UPLOAD_FOLDER, session['channel_id'] + chanImgFile.filename)#type: ignore
+                    chanImgFile.save(path)#type: ignore
+                    with self.app.app_context():
+                        stmt = update(self.Channels).where(self.Channels.channel_id == session['channel_id']).values(pict= session['channel_id'] + chanImgFile.filename)
+                        self.db.session.execute(stmt)
+                        self.db.session.commit()
+                    self.socketio.emit("new_message", {"message_type": "refresh"}, to=session['channel_id'])
+                    return redirect(url_for("channel"))
+                else:
+                    if not fileThing:
+                        print("AN ERROR OCCURED; FILE NOT SENT")
+                        return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, pict = channels[0].pict, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, username=session['username'], user_id=session['user_id'], error="NO FILE PROVIDED", muted=self.is_muted_user(session['channel_id'], session['user_id']))
+                    path = pth.join(self.UPLOAD_FOLDER, session['channel_id'] + fileThing.filename)#type: ignore
+                    fileThing.save(path)
+                    file_type = fileThing.mimetype
+                    #the below line checks for the file type
+                    message_type = 'i' if file_type.startswith('image/') else 'v' if file_type.startswith('video/') else 'a' if file_type.startswith('audio/') else 'f'
+                    with self.app.app_context():
+                        self.db.session.add(self.Messages(sender_id=session['user_id'], channel_id=session['channel_id'], content=path,timestamp=datetime.now().replace(microsecond = 0),message_type=message_type))#type:ignore
+                        self.db.session.commit()
+
+                    self.socketio.emit("new_message", {"message_type": message_type, "content": path, "user_id": session['user_id'], "username" : session['username'], "timestamp": f"{datetime.now().replace(microsecond = 0)}"}, to=session['channel_id'])
+                    return redirect(url_for("channel"))
+            elif request.method == "GET":
                 with self.app.app_context():
-                    self.db.session.add(self.Messages(sender_id=session['user_id'], channel_id=session['channel_id'], content=path,timestamp=datetime.now().replace(microsecond = 0),message_type=message_type))#type:ignore
-                    self.db.session.commit()
-
-                self.socketio.emit("new_message", {"message_type": message_type, "content": path, "user_id": session['user_id'], "username" : session['username'], "timestamp": f"{datetime.now().replace(microsecond = 0)}"}, to=session['channel_id'])
-
-                return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,username=session['username'], owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, channel_description=channels[0].channel_description, user_id=session['user_id'], muted=self.is_muted_user(session['channel_id'], session['user_id']))
-
+                    stmt = select(self.Users.username, self.Messages.sender_id, self.Messages.content, self.Messages.timestamp, self.Messages.message_type).join(self.Users , self.Users.user_id == self.Messages.sender_id).where(self.Messages.channel_id == session['channel_id']).order_by(self.Messages.timestamp)
+                    messages = self.db.session.execute(stmt).all()
+                return render_template("channel.html", code=session['channel_id'], channel_id=session['channel_id'], messages=messages,owner_id=channels[0].owner_id, channel_name=channels[0].channel_name, pict = channels[0].pict, channel_description=channels[0].channel_description, username=session['username'], user_id=session['user_id'], muted=self.is_muted_user(session['channel_id'], session['user_id']))
             else:
                 return redirect(url_for('login'))
 
@@ -797,8 +831,7 @@ class ChatApp:
                 with self.app.app_context():
                     self.db.session.add(self.Messages(sender_id=session['user_id'],channel_id=channel_id, content=data['data'], timestamp=current_time))#type:ignore
                     self.db.session.commit()
-
-                print(f'{username} SAID: {data["data"]}')
+                #print(f'{username} SAID: {data["data"]}')
 
         @self.socketio.on('connect')
         def connect(auth):
@@ -825,4 +858,4 @@ class ChatApp:
 if __name__ == '__main__':
     app = ChatApp()
     #you can provide params : ( host, port, debug ) 
-    app.run()
+    app.run(debug=True)

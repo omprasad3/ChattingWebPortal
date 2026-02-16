@@ -7,11 +7,12 @@ th,td {
 }
 </style>
 <div class="d-flex flex-column overflow-auto h-100 border border-3 border-primary m-1 rounded-4" id="messages" style="overflow-y:scroll;">
-	<table class="table h6 border-primary table-striped fst-italic">
+	<table class="table h6 border-primary fst-italic">
 		<thead>
 		<tr>
 			<th scope="col" class="col-2 h5 border border-primary border-start-0 border-top-0"><b>ID</b></th>
-			<th scope="col" class="col-6 h5 border border-primary border-start-0 border-top-0"><b>NAME</b></th>
+			<th scope="col" class="col-5 h5 border border-primary border-start-0 border-top-0"><b>NAME</b></th>
+			<th scope="col" class="col-1 h5 border border-primary border-start-0 border-top-0"><b>IMAGE</b></th>
 			<th scope="col" class="col-1 h5 border border-primary border-start-0 border-top-0 border-end-0"><b>UNBLOCK</b></th>
 		</tr>
 		</thead>
@@ -54,12 +55,26 @@ th,td {
 				username.classList.add("border-start-0");
 				username.classList.add("border-top-0");
 
+				const imgg = document.createElement('img');
+				const img_src = "uploads/" + ((m.pfp == undefined || m.pfp == null)?"default_avatar.jpg":m.pfp);				
+				imgg.src = img_src;
+				imgg.height = '40';
+				imgg.width = '40';
+				imgg.classList.add("rounded-circle");
+				const pfp = document.createElement('td');
+				pfp.classList.add("border");
+				pfp.classList.add("border-primary");
+				pfp.classList.add("border-start-0");
+				pfp.classList.add("border-top-0");
+				pfp.appendChild(imgg);
+
 				const unblockstat = document.createElement('td');
 				unblockstat.innerHTML = `<a href="/channel/${m.ID}/toggle_block">`+unblockit+'</a>';
 				id.textContent = m.ID;
 				username.textContent = m.username;
 				tr.appendChild(id);
 				tr.appendChild(username);
+				tr.appendChild(pfp);
 				tr.appendChild(unblockstat);
 				table.appendChild(tr);
 			});

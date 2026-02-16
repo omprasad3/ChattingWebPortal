@@ -53,7 +53,10 @@ li{
 	<div id="channel-dropdown" class="dropdown">
 		<ul class="border border-primary border-2 dropdown-menu dropdown-menu p-3 rounded-2 shadow-lg" style="">
 			{% if owner_id == user_id %}
-			<li><a class="dropdown-item rounded fw-bold" data-bs-toggle="modal" data-bs-target="#channelUpdateModal"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor" viewBox="0 0 640 640"><path d="M535.6 85.7C513.7 63.8 478.3 63.8 456.4 85.7L432 110.1L529.9 208L554.3 183.6C576.2 161.7 576.2 126.3 554.3 104.4L535.6 85.7zM236.4 305.7C230.3 311.8 225.6 319.3 222.9 327.6L193.3 416.4C190.4 425 192.7 434.5 199.1 441C205.5 447.5 215 449.7 223.7 446.8L312.5 417.2C320.7 414.5 328.2 409.8 334.4 403.7L496 241.9L398.1 144L236.4 305.7zM160 128C107 128 64 171 64 224L64 480C64 533 107 576 160 576L416 576C469 576 512 533 512 480L512 384C512 366.3 497.7 352 480 352C462.3 352 448 366.3 448 384L448 480C448 497.7 433.7 512 416 512L160 512C142.3 512 128 497.7 128 480L128 224C128 206.3 142.3 192 160 192L256 192C273.7 192 288 177.7 288 160C288 142.3 273.7 128 256 128L160 128z"/></svg><b>UPDATE CHANNEL</b></a></li>
+			<li><a class="dropdown-item rounded fw-bold" data-bs-toggle="modal" data-bs-target="#channelUpdateModal"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor" viewBox="0 0 640 640"><path d="M535.6 85.7C513.7 63.8 478.3 63.8 456.4 85.7L432 110.1L529.9 208L554.3 183.6C576.2 161.7 576.2 126.3 554.3 104.4L535.6 85.7zM236.4 305.7C230.3 311.8 225.6 319.3 222.9 327.6L193.3 416.4C190.4 425 192.7 434.5 199.1 441C205.5 447.5 215 449.7 223.7 446.8L312.5 417.2C320.7 414.5 328.2 409.8 334.4 403.7L496 241.9L398.1 144L236.4 305.7zM160 128C107 128 64 171 64 224L64 480C64 533 107 576 160 576L416 576C469 576 512 533 512 480L512 384C512 366.3 497.7 352 480 352C462.3 352 448 366.3 448 384L448 480C448 497.7 433.7 512 416 512L160 512C142.3 512 128 497.7 128 480L128 224C128 206.3 142.3 192 160 192L256 192C273.7 192 288 177.7 288 160C288 142.3 273.7 128 256 128L160 128z"/></svg><b>UPDATE CHANNEL DETAILS</b></a></li>
+			<li><a class="dropdown-item rounded fw-bold" id="updateChannelImage"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M160 96C124.7 96 96 124.7 96 160L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 160C544 124.7 515.3 96 480 96L160 96zM421.8 203.7L436.2 218.1C451.8 233.7 451.8 259 436.2 274.7L412.4 298.5L341.4 227.5L365.2 203.7C380.8 188.1 406.1 188.1 421.8 203.7zM215.9 353L307.4 261.4L378.4 332.4L286.8 423.9C282.7 428 277.6 430.9 271.9 432.3L211.8 447.3C206.3 448.7 200.6 447.1 196.6 443.1C192.6 439.1 191 433.4 192.4 427.9L207.4 367.8C208.8 362.2 211.7 357 215.8 352.9z"/><b>UPDATE CHANNEL IMAGE</b></a></li>
+			<input type="file" accept="image/*" id="chanImgFile" name="chanImgFile" hidden>
+			<li><a class="dropdown-item rounded fw-bold" href="/remove_channel_image"><svg class="me-2" height="25px" width="25px" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M320 96C333.5 96 346.3 101.6 355.4 111.6L531.4 303.6C544.3 317.6 547.6 337.9 540 355.4C532.4 372.9 515 384 496 384L144 384C125 384 107.7 372.8 100.1 355.3C92.5 337.8 95.8 317.6 108.7 303.5L284.7 111.5C293.7 101.6 306.5 96 320 96zM96 496C96 469.5 117.5 448 144 448L496 448C522.5 448 544 469.5 544 496C544 522.5 522.5 544 496 544L144 544C117.5 544 96 522.5 96 496z"/></svg><b>REMOVE CHANNEL IMAGE</b></a></li>
 			<li><a href="/manage_users" class="dropdown-item rounded fw-bold"><svg class="me-2" xmlns="http://www.w3.org/2000/svg" height="25px" width="25px" fill="currentColor"  viewBox="0 0 640 640"><path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/></svg><b>MANAGE USERS</b></a></li>
 			<li><a href="/manage_blocked_users" class="dropdown-item rounded fw-bold"><svg xmlns="http://www.w3.org/2000/svg" height="25px" class="me-2" width="25px" fill="currentColor" viewBox="0 -960 960 960"><path d="M791-55 686-160H160v-112q0-34 17.5-62.5T224-378q45-23 91.5-37t94.5-21L55-791l57-57 736 736-57 57ZM240-240h366L486-360h-6q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm496-138q29 14 46 42.5t18 61.5L666-408q18 7 35.5 14t34.5 16ZM568-506l-59-59q23-9 37-29.5t14-45.5q0-33-23.5-56.5T480-720q-25 0-45.5 14T405-669l-59-59q23-34 58-53t76-19q66 0 113 47t47 113q0 41-19 76t-53 58Zm38 266H240h366ZM457-617Z"/></svg><b>BLOCKED USERS</b></a></li>
 			<li><a href="/delete_all_messages" class="dropdown-item rounded fw-bold"><svg xmlns="http://www.w3.org/2000/svg" height="25px" class="me-2" width="25px" fill="currentColor" viewBox="0 -960 960 960"><path d="m376-300 104-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56Zm-96 180q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520Zm-400 0v520-520Z"/></svg><b>DELETE ALL MESSAGES</b></a></li>
@@ -90,7 +93,7 @@ li{
 				<div class="modal-body d-flex flex-column justify-content-center p-4">
 					<p class="h3 text-center fw-bold mt-4"><b>UPDATE CHANNEL DETAILS</b></p>
 					<label class="form-label me-2 mt-2 fw-semibold" for="channelNameOfModal">ENTER NEW CHANNEL NAME</label>
-					<input type="text" name="channelNameOfModal" maxlength="20" style="width:450px;" class="border-2 shadow-sm form-control fw-light rounded-3" value="{{channel_name}}" required/>
+					<input type="text" name="channelNameOfModal" maxlength="20" style="width:450px;" clas="border-2 shadow-sm form-control fw-light rounded-3" value="{{channel_name}}" required/>
 					<label class="form-label mt-2 fw-semibold" for="passwordInput">ENTER NEW PASSWORD</label>
 					<div class="input-group">
 						<input type="text" class="border-2 form-control shadow-sm rounded-3 me-2" maxlength="20" id="passwordInput" name="passwordInput" required>
@@ -98,7 +101,7 @@ li{
 						<div class="invalid-feedback">Please fill out this field.</div>
 					</div>
 					<label class="form-label fw-semibold mt-2" for="channelDescription">ENTER NEW CHANNEL DESCRIPTION</label>
-					<textarea style="resize:none;height:100%;" class="border-2 shadow-sm form-control fw-light rounded-3 mb-2" value ="{{channel_description}}" id="channelDescription" name="channelDescription"></textarea>
+					<textarea style="resize:none;height:100%;" class="border-2 shadow-sm form-control fw-light rounded-3 mb-2" id="channelDescription" name="channelDescription">channel_description</textarea>
 					<div class="d-flex justify-content-center mt-2 mb-2">
 						<button style="width:100px;" type="button" class="border-dark border border-2 btn me-3 btn-danger shadow-sm fw-bold" data-bs-dismiss="modal"><b>CLOSE</b></button>
 						<button style="width:100px;" type="submit" class="border-dark border border-2 btn btn-success shadow-sm fw-bold" name="action" value="updateChannel"><b>UPDATE</b></button>
@@ -114,7 +117,8 @@ li{
 <div class="modal-dialog">
 	<div class="modal-content">
 		<div class="modal-body">
-			<div class="text-center h4"><b>CHANNEL NAME :</b> {{channel_name}}<br><b>CHANNEL ID :</b> {{code}}<br><br></div>
+			<img style="display:block;margin-left:auto;margin-right:auto;" class="border border-dark rounded-circle border-2" src="uploads/{{'default_group.jpg' if pict == None else pict }}" width="110px" height="110px">
+			<div class="text-center h4 mt-3"><b>CHANNEL NAME :</b> {{channel_name}}<br><b>CHANNEL ID :</b> {{code}}<br><br></div>
 			<div class="text-center h5"><p class="fw-bold d-inline">ABOUT THIS CHANNEL :</p><br>{{channel_description}}</div>
 			<div class="d-flex justify-content-center">
 				<button style="width:100px;" type="button" class="border-dark border border-2 mt-2 btn btn-primary" data-bs-dismiss="modal"><svg class="d-flex mx-auto justify-content-center" width="30px" height="30px" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M144 224C161.7 224 176 238.3 176 256L176 512C176 529.7 161.7 544 144 544L96 544C78.3 544 64 529.7 64 512L64 256C64 238.3 78.3 224 96 224L144 224zM334.6 80C361.9 80 384 102.1 384 129.4L384 133.6C384 140.4 382.7 147.2 380.2 153.5L352 224L512 224C538.5 224 560 245.5 560 272C560 291.7 548.1 308.6 531.1 316C548.1 323.4 560 340.3 560 360C560 383.4 543.2 402.9 521 407.1C525.4 414.4 528 422.9 528 432C528 454.2 513 472.8 492.6 478.3C494.8 483.8 496 489.8 496 496C496 522.5 474.5 544 448 544L360.1 544C323.8 544 288.5 531.6 260.2 508.9L248 499.2C232.8 487.1 224 468.7 224 449.2L224 262.6C224 247.7 227.5 233 234.1 219.7L290.3 107.3C298.7 90.6 315.8 80 334.6 80z"/></svg></button>
@@ -146,6 +150,10 @@ if ( "message_type" in data && data["message_type"] == "broadcast" )
 	messages.appendChild(messageDiv);	
 	//scroll to the bottom
 	messages.scrollTop = messages.scrollHeight;
+}
+else if("message_type" in data && data["message_type"] == "refresh")
+{
+	location.reload(true);
 }
 else if("message_type" in data && data["message_type"] == "all_message_delete")
 {
@@ -322,6 +330,13 @@ uploadButton.addEventListener('click', () => {
 	fileInput.click();	
 });
 
+const chanImgFile = document.getElementById('chanImgFile');
+const updateDropdown = document.getElementById('updateChannelImage');
+
+updateDropdown.addEventListener('click', () => {
+	chanImgFile.click();
+});
+
 //file input handler
 fileInput.addEventListener('change', () => {
 	if (fileInput.files.length > 0)
@@ -343,9 +358,30 @@ fileInput.addEventListener('change', () => {
 	}
 });
 
+chanImgFile.addEventListener('change', () => {
+	if (chanImgFile.files.length > 0)
+	{	
+		const file = chanImgFile.files[0];
+		const formData = new FormData();
+		formData.append('chanImgFile', file);
+
+		fetch('/channel', {
+			method: 'POST',
+			body: formData
+		})
+		.then(res => res.text())
+		.then(data => console.log('Uploaded: ', data))
+		.catch(err => console.error(err))
+		.finally(() => {
+		fileInput.value = '';
+		});
+	}
+});
+
 function scrollBottom(){
 	const md = document.getElementById('messages');
 	md.scrollTop = messages.scrollHeight;
 }
+
 </script>
 {% endblock %}

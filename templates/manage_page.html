@@ -12,11 +12,12 @@ td{
 }
 </style>
 <div class="d-flex flex-column overflow-auto h-100 border border-3 border-primary m-1 rounded-4" id="messages" style="overflow-y:scroll;">
-	<table class="table table-borderless fst-italic table-striped">
+	<table class="table table-borderless fst-italic">
 		<thead>
 		<tr>
 			<th scope="col" class="col-1 h5 border border-primary border-start-0 border-top-0"><b>ID</b></th>
-			<th scope="col" class="col-6 h5 border border-primary border-start-0 border-top-0"><b>NAME</b></th>
+			<th scope="col" class="col-5 h5 border border-primary border-start-0 border-top-0"><b>NAME</b></th>
+			<th scope="col" class="col-1 h5 border border-primary border-start-0 border-top-0"><b>IMAGE</b></th>
 			<th scope="col" class="col-2 h5 border border-primary border-start-0 border-top-0"><b>MUTE / UNMUTE</b></th>
 			<th scope="col" class="col-1 h5 border border-primary border-start-0 border-end-0 border-top-0"><b>BLOCK</b></th>
 		</tr>
@@ -67,6 +68,18 @@ td{
 				username.textContent = m.username;
 				tr.appendChild(id);
 				tr.appendChild(username);
+				const imgg = document.createElement('img');
+				imgg.src = (m.pfp == undefined || m.pfp == null)?"uploads/default_avatar.jpg":("uploads/" + m.pfp);
+				imgg.classList.add("rounded-circle");
+				imgg.height = '40';
+				imgg.width = '40';
+				const pfp = document.createElement('td');
+				pfp.classList.add("border");
+				pfp.classList.add("border-primary");
+				pfp.classList.add("border-start-0");
+				pfp.classList.add("border-top-0");
+				pfp.appendChild(imgg);
+				tr.appendChild(pfp);
 				if(m.ID != "{{owner_id}}"){
 					tr.appendChild(mutestat);
 					tr.appendChild(block);
